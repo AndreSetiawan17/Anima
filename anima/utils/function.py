@@ -40,9 +40,9 @@ def rename(path:str, ver:bool = True):
         raise FileNotFoundError(f"{e}\n\nFile tidak ditemukan!\nFile Not Found!")
 
     except PermissionError as e:
-        raise PermissionError(
-            f"{e}\nTidak dapat membuka folder, coba periksa izin dari folder tersebut \
-            Can't open the folder, try checking the permissions of the folder"
+        raise PermissionError(f"{e}\n \
+            Tidak dapat membuka folder, coba periksa izin dari folder tersebut atau menggunakan 'sudo'\
+            Can't open the folder, try checking the permissions of the folder"  # noqa: E501
         )
 
 
