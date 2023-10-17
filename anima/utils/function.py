@@ -41,8 +41,7 @@ def rename(path:str, ver:bool = True):
 
     except PermissionError as e:
         raise PermissionError(f"{e}\n \
-            Tidak dapat membuka folder, coba periksa izin dari folder tersebut atau menggunakan 'sudo'\
-            Can't open the folder, try checking the permissions of the folder"  # noqa: E501
+            Tidak dapat mengakses folder, coba periksa izin dari folder tersebut atau menggunakan 'sudo'"  # noqa: E501
         )
 
 

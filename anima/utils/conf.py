@@ -1,14 +1,18 @@
+from os import path as _path, chmod, chown  # noqa: F401
 import subprocess
 import json
-import os
 
+def rchmod(path,permissions:bin):
+    """
+        Change file permissions
+    """
+    ...
 
 class Conf:
-    conf_path = os.path.sep.join(__file__.split(os.path.sep)[:-1])
+    conf_path = _path.sep.join(__file__.split(_path.sep)[:-1])
 
     default_conf = {
-        "dest":None, # Lokasi dari file yang akan disimpan
-        
+        "dest":None, # Lokasi dari file yang akan disimpan  
     }
 
     @classmethod
@@ -22,9 +26,16 @@ class Conf:
             json.dump(data,f)
     
     @classmethod
-    def make_read_only(cls, path):
+    def manage_permissions(cls, path:str):
         try:
-            err_code = subprocess.run(["chmod","a-wx","*"])
+            err_code = [
+                subprocess.run(["chmod","-R","444",path]),
+                subprocess.run(["chmod","555",path]),
+                subprocess.run(["chown","-R","nobody:nogroup",path])
+            ]
+
+            # chmod(path,0o444),
+            # chmod(path,0o555),
             if err_code:
                raise RuntimeError(
                    f"Terjadi kesalahan saat mengubah izin file \
@@ -33,3 +44,7 @@ class Conf:
 
         except PermissionError:
             raise PermissionError("Run this program with 'sudo'")
+
+
+if __name__ == "__main__":
+    Conf.make_read_only("./Folder/")
