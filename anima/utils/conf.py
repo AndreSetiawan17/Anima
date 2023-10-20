@@ -1,4 +1,5 @@
 from os import listdir, path as _path, chmod, chown, walk  # noqa: F401
+from sh import mount
 from pwd import getpwnam
 from grp import getgrnam
 import subprocess
@@ -16,7 +17,7 @@ def vprint(text:str,verbose:bool,sep:any=" ",end:any="\n"):
 class Conf:
 
     default_conf = {
-        "dest":None, # Lokasi dari file yang akan disimpan  
+        "dest":None, # Lokasi partisi dari file yang akan disimpan
     }
     verbose = False
 
@@ -47,14 +48,32 @@ class Conf:
             try:
                 chmod(root,0o555)
                 chown(root,cls.user,cls.group)
-                vprint(f"[{Text.ok}]",cls.verbose)
+                vprint(Teks.ok,cls.verbose)
             except PermissionError:
                 ...
 
             for i in files:
                 chmod(_path.join(root,i),0o444)
                 chown(_path.join(root,i),cls.user,cls.group)
+
+	@property
+	def conf(cls):
+	   return cls.read()
+	  
+	@conf.setter
+	def conf(cls,data):
+	   cls.write(data)
     
+
+
+if __name__ == "__main__":
+    ...
+    
+    
+    
+
+
+
     # @classmethod
     # def manage_permissions(cls, path:str):
     #     try:
@@ -74,7 +93,3 @@ class Conf:
 
     #     except PermissionError:
     #         raise PermissionError("Run this program with 'sudo'")
-
-
-if __name__ == "__main__":
-    Conf.rchmod("./test")
