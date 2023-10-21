@@ -44,6 +44,12 @@ def rename(path:str, ver:bool = True):
             Tidak dapat mengakses folder, coba periksa izin dari folder tersebut atau menggunakan 'sudo'"  # noqa: E501
         )
 
-
+def vprint(text:str,verbose:bool,sep:any=" ",end:any="\n"):
+    """
+        Print if verbose
+    """
+    if verbose:
+        print(text,sep=sep,end=end)
+        
 if __name__ == "__main__":
     ...

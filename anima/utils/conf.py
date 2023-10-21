@@ -1,23 +1,17 @@
-from os import listdir, path as _path, chmod, chown, walk  # noqa: F401
-from sh import mount
+from os import path as _path, chmod, chown, walk
 from pwd import getpwnam
 from grp import getgrnam
 import subprocess
 import json
 
-from text import Text
-
-def vprint(text:str,verbose:bool,sep:any=" ",end:any="\n"):
-    """
-        Print if verbose
-    """
-    if verbose:
-        print(text,sep=sep,end=end)
+from text import Text, Msg
+from func import vprint
 
 class Conf:
 
     default_conf = {
-        "dest":None, # Lokasi partisi dari file yang akan disimpan
+        "partition":None,
+        "dest":None,
     }
     verbose = False
 
@@ -27,69 +21,54 @@ class Conf:
 
 
     @classmethod
-    def read(cls):
+    def read(cls) -> any:
         with open(cls.conf_path,"r") as f:
             return json.load(f)
-    
+
     @classmethod
-    def write(cls, data):
+    def write(cls,data):
         with open(cls.conf_path,"w") as f:
             json.dump(data,f)
 
     @classmethod
-    def rchmod(cls,path:str):
+    def manage_permission(cls,path:str):
         """
             Change file permissions
         """
 
-        for root, dirs, files in walk(path):
+        vprint("Change permission:",cls.verbose)
 
-            vprint(f"Change permission: --{root[-10:]}".ljust(31),end="")            
-            try:
-                chmod(root,0o555)
-                chown(root,cls.user,cls.group)
-                vprint(Teks.ok,cls.verbose)
-            except PermissionError:
-                ...
+        for root, dirs, files in walk(path):
+            vprint(root[-29:].ljust(31), cls.verbose, end="")
+            # chmod(root,0o555)
+            # chown(root,cls.user,cls.group)
+            vprint(Text.ok,cls.verbose)
 
             for i in files:
-                chmod(_path.join(root,i),0o444)
-                chown(_path.join(root,i),cls.user,cls.group)
+                dest = _path.join(root,i)
+                vprint(dest[-29:].ljust(31), cls.verbose, end="")
+                # chmod(dest,0o444)
+                # chown(dest,cls.user,cls.group)
+                vprint(Text.ok,cls.verbose)
 
-	@property
-	def conf(cls):
-	   return cls.read()
-	  
-	@conf.setter
-	def conf(cls,data):
-	   cls.write(data)
+    @classmethod
+    def mount(cls,partition:str,dest:str,read_only:bool=False):
+
+        if not _path.exists(partition) and not _path.exists(dest):
+            return Msg.FileFolderNotFound
+
+        sh = ["mount",partition,dest]
+        if read_only:
+            sh.extend(["-o", "ro"])
+        subprocess.run(sh,check=True)
+
     
+    @classmethod
+    def umount(cls,path:str):
+        subprocess.run(["umount",path],check=True)
+
 
 
 if __name__ == "__main__":
-    ...
-    
-    
-    
-
-
-
-    # @classmethod
-    # def manage_permissions(cls, path:str):
-    #     try:
-    #         err_code = [
-    #             subprocess.run(["chmod","-R","444",path]),
-    #             subprocess.run(["chmod","555",path]),
-    #             subprocess.run(["chown","-R","nobody:nogroup",path])
-    #         ]
-
-    #         # chmod(path,0o444),
-    #         # chmod(path,0o555),
-    #         if err_code:
-    #            raise RuntimeError(
-    #                f"Terjadi kesalahan saat mengubah izin file \
-    #                Subprocess output: {err_code}"
-    #            )
-
-    #     except PermissionError:
-    #         raise PermissionError("Run this program with 'sudo'")
+    Conf.verbose = True
+    Conf.manage_permission("../test")
