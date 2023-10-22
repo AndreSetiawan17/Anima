@@ -1,40 +1,49 @@
-import os
-
-import argparse
+from argparse import ArgumentParser, Namespace
 
 def main():
-    parser = argparse.ArgumentParser(
-        prog="Hehe"
-    )
+    parser = ArgumentParser()
 
-    # System command
     parser.add_argument(
-        "--set-path",
-        nargs=1,
+        "-v","--verbose",
         metavar="",
-
-    )
-
-
-    # 
-    parser.add_argument(
-        "-a","--add",
-        nargs="+",
-        metavar="",
-        help="Menambahkan folder yang dipilih pada rak"
+        help="Verbose mode"
     )
 
     parser.add_argument(
-        "-rn","--rename",
-        nargs="+",
+        "--resume",
         metavar="",
-        help="Melakukan rename secara manual"
+        help="Continuing recent progresss"
     )
 
-    args = parser.parse_args()
+
+    subparsers = parser.add_subparsers(
+        title="Existing commands"
+    )
+    subparsers.required = True
+
+    padd = subparsers.add_parser("add")
+    padd.add_argument(
+        "src",
+        metavar="source",
+        help="Location of the folder to be added"
+    )
+
+    pconfig = subparsers.add_parser("config")
+    pconfig.add_argument(
+        "--partition",
+    )
+
+    pconfig.add_argument(
+        "-d", "--destination",
+    )
+
+    plog = subparsers.add_parser("log")
+    plog.add_argument(
+        "-a","--all"
+    )
+
+    args:Namespace = parser.parse_args()
     print(args)
 
 if __name__ == "__main__":
-    print(os.geteuid())
-    exit()
     main()

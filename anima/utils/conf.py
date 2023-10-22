@@ -1,17 +1,17 @@
-from os import path as _path, chmod, chown, walk
+from os import path as _path, chmod, chown, walk  # noqa: F401
 from pwd import getpwnam
 from grp import getgrnam
 import subprocess
 import json
 
-from text import Text, Msg
+from text import Text, Messege
 from func import vprint
 
 class Conf:
 
     default_conf = {
         "partition":None,
-        "dest":None,
+        "destination":None,
     }
     verbose = False
 
@@ -26,7 +26,7 @@ class Conf:
             return json.load(f)
 
     @classmethod
-    def write(cls,data):
+    def write(cls,data:any) -> None:
         with open(cls.conf_path,"w") as f:
             json.dump(data,f)
 
@@ -40,14 +40,18 @@ class Conf:
 
         for root, dirs, files in walk(path):
             vprint(root[-29:].ljust(31), cls.verbose, end="")
+            # @coba
             # chmod(root,0o555)
+            # @coba
             # chown(root,cls.user,cls.group)
             vprint(Text.ok,cls.verbose)
 
             for i in files:
                 dest = _path.join(root,i)
                 vprint(dest[-29:].ljust(31), cls.verbose, end="")
+                # @coba
                 # chmod(dest,0o444)
+                # @coba
                 # chown(dest,cls.user,cls.group)
                 vprint(Text.ok,cls.verbose)
 
@@ -55,7 +59,7 @@ class Conf:
     def mount(cls,partition:str,dest:str,read_only:bool=False):
 
         if not _path.exists(partition) and not _path.exists(dest):
-            return Msg.FileFolderNotFound
+            return Messege.FileFolderNotFound
 
         sh = ["mount",partition,dest]
         if read_only:
@@ -66,7 +70,6 @@ class Conf:
     @classmethod
     def umount(cls,path:str):
         subprocess.run(["umount",path],check=True)
-
 
 
 if __name__ == "__main__":

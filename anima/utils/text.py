@@ -5,7 +5,7 @@ class Text:
     failed  = f"[{col('Failed', 'red', attrs=['bold'])}]"
 
 
-class Msg:
+class Messege:
 	"""
 		Error Messege
 	"""
@@ -15,8 +15,8 @@ class Msg:
 
 if __name__ == "__main__":
 	print(
-		Msg.PermissionError,
-		Msg.FileFolderNotFound,
+		Messege.PermissionError,
+		Messege.FileFolderNotFound,
 
 		Text.ok,
 		Text.failed,

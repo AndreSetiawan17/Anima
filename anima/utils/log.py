@@ -1,7 +1,11 @@
 from os import path as _path
 
 """
-    Log with decorator
+    Loging menggunakan decorator
+
+    Mencatat semua hal yang akan dilakukan dan statusnya setelah dijalankan
+    lalu melakukan tindakan tambahan jika ada yang gagal
+
 """
 
 class Log:
