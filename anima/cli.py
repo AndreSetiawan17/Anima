@@ -1,9 +1,9 @@
 from argparse import ArgumentParser, Namespace
-from os import path as _path, getuid, rmdir
+from os import path as _path, getuid
 
-from utils.text import Messege as Msg
-from utils.conf import Conf
-from utils.func import rename
+from utils.error import NotEnoughSpace
+from utils.conf  import Conf
+from utils.func  import rename, rename_preview, check  # noqa: F401
 
 def main():
     parser = ArgumentParser()
@@ -36,23 +36,20 @@ def main():
     padd.add_argument(
         "src",
         metavar="source",
-        # nargs="+",
+        nargs="+",
         help="Location of the folder to be added"
     )
     padd.add_argument(
         "-t","--title",
         metavar="",
-        # nargs="+"
     )
     padd.add_argument(
         "-r","--resolution",
         metavar="",
-        # nargs="+"
     )
     padd.add_argument(
         "-p","--platform",
         metavar="",
-        # nargs="+",
         choices=["TV","BD"],
     )
     padd.add_argument(
@@ -61,45 +58,55 @@ def main():
         action="store_true"
     )
     padd.add_argument(
-        "--no-rename",
+        "-nr","--no-rename",
         dest="rename",
         action="store_false"
-    )
-
-    pconfig = subparsers.add_parser("config")
-    pconfig.add_argument(
-        "-p","--partition",
-        metavar="",
-        dest="part"
-    )
-    pconfig.add_argument(
-        "-d", "--destination",
-        metavar="",
-        dest="dest"
     )
 
     pedit = subparsers.add_parser("edit")
     pedit.add_argument(
         "-f","--folder",
         metavar="",
-        # nargs="+",
     )
     pedit.add_argument(
         "-t","--title",
         metavar="",
-        # nargs="+"
     )
     pedit.add_argument(
         "-r","--resolution",
         metavar="",
-        # nargs="+"
     )
     pedit.add_argument(
         "-p","--platform",
         metavar="",
-        # nargs="+",
         choices=["TV","BD"],
-        default=["TV"]
+    )
+
+    prename = subparsers.add_parser("rename")
+    prename.add_argument(
+        "rename",
+        metavar="",
+        nargs="+",
+        help="Manual rename"
+    )
+    prename.add_argument(
+        "--ignore",
+        metavar="",
+        nargs="+"
+    )
+    prename.add_argument(
+        "-y","--yes",
+        action="store_false"
+    )
+    prename.add_argument(
+        "-nra","--not-restrict-access",
+        action="store_false",
+        dest="restrict_access"
+    )
+    prename.add_argument(
+        "-urf","--use-rename-file",
+        action="store_true",
+        dest="use_rename_file"
     )
 
     plog = subparsers.add_parser("log")
@@ -120,70 +127,83 @@ def main():
         help="You can choose what to back up"
     )
 
+    pconfig = subparsers.add_parser("config")
+    pconfig.add_argument(
+        "-p","--partition",
+        metavar="",
+        dest="part"
+    )
+    pconfig.add_argument(
+        "-pl","--partition-label",
+        metavar="",
+        dest="part_label"
+    )
+    pconfig.add_argument(
+        "-d", "--destination",
+        metavar="",
+        dest="dest"
+    )
 
     args:Namespace = parser.parse_args()
-    command:str    = args.command
-    print(args)
+    print("\n\n",args,sep="",end="\n\n")
 
     conf = Conf.read()
 
     if args.umount:
         Conf.umount()
-    if args.mount:
+    elif args.mount:
         Conf.mount()
-    
-    if command == "add":
-        if getuid() != 0:
-            print(Msg.PermissionError)
-            exit()
 
-        src     = args.src
-        device  = conf["partition"]
+    match args.command:
+        case "add":
+            
+            src     = args.src
+            device  = conf["partition"]
 
-        if not Conf.disk_free() > Conf.folder_size(src):
-            print("Not enough space")
-            exit()
-        
-        folder_name = []
-        if title:=args.title:
-            folder_name.append(title)
-        if ress:=args.resolution:
-            folder_name.append(ress)
-        if plat:=args.platform:
-            folder_name.append(plat)
+            if not Conf.disk_free() > Conf.folder_size(src) + 1024:
+                raise NotEnoughSpace
+            
+            if len(src) == 1:
+                folder_name = [i for i in [
+                    args.title,
+                    args.resolution,
+                    args.platform
+                ] if i ]
 
-        if args.rename:
-            src = rename(src," ".join(folder_name))
-        del title,ress,plat
-        Conf.manage_permission(src)
-        if Conf.partition_mountpoint(device=device):
-            Conf.umount(device)
-        Conf.mount()
-        Conf.sync(src)
-        rmdir(src)
-        Conf.umount(Conf.partition_mountpoint(device=device))
-        Conf.mount(True)
+            for src in args.src:
+                if args.rename and len(src) < 1:
+                    src = rename(src," ".join(folder_name))
+                Conf.restrict_access(src)
+                if Conf.partition_mountpoint(device=device):
+                    Conf.umount(device)
+                Conf.mount()
+                Conf.sync(src,False)
+                Conf.umount(Conf.partition_mountpoint(device=device))
+                Conf.mount(True)
 
+        case "rename":                
+            for path in args.rename:
+                rename(path,ignore=args.ignore,use_rename_file=args.use_rename_file,ver=args.yes)
 
-    elif command == "config":
-        if part := args.part:
-            if not _path.exists(part):
-                print(f"{part} - {Msg.FileFolderNotFound}")
-                exit()
-            Conf.write(
-                "partition",part
-            )
-        if dest := args.dest:
-            if not _path.exists(dest):
-                print(f"{dest} - {Msg.FileFolderNotFound}")
-                exit()
-            Conf.write(
-                "destination",dest
-            )
-        
-        if not part and not dest:
-            print(Conf.read())
+        case "config":
+            if part := args.part:
+                if not _path.exists(part):
+                    # Partisi tidak ada
+                    exit()
+                Conf.write(
+                    "partition",part
+                )
+            if dest := args.dest:
+                if not _path.exists(dest):
+                    # Tujuan tidak ada
+                    exit()
+                Conf.write(
+                    "destination",dest
+                )
+            
+            if not part and not dest:
+                print(Conf.read())
 
 if __name__ == "__main__":    
-    debug = True    
+    debug = True
     main()

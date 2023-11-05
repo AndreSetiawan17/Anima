@@ -1,36 +1,59 @@
-from os import path as _path, chmod, chown, walk
+from os import path as _path, chmod, chown, rmdir, walk
 from pwd import getpwnam
 from grp import getgrnam
 import subprocess
 import json
 import psutil
 
+from .error import coba, ConfigurationError  # noqa: F401
+
 class Conf:
-    verbose = False
     conf_path = _path.join(_path.sep.join(__file__.split(_path.sep)[:-2]),\
         "setting.json")
+    conf_key  = ["partition","destination","language"]
+    verbose   = False
+
     user  = getpwnam("nobody").pw_uid
     group = getgrnam("nogroup").gr_gid
 
     @classmethod
+    def load(cls,path:str) -> any:
+        with open(path,"r") as f:
+            return json.load(f)
+
+        # PermissionError
+
+    @classmethod
     def read(cls) -> dict:
         if _path.exists(cls.conf_path):
-            with open(cls.conf_path,"r") as f:
-                out = json.load(f)
-                if isinstance(out,dict):
-                    return out
+            conf = cls.load(cls.conf_path)
+            
+            if not isinstance(conf,dict):
+                raise ConfigurationError
 
-        raise RuntimeError("Konfigurasi tidak tersedia")
+            conf = {k:v for k,v in conf.items() if k in cls.conf_key}
+            if (len(conf.keys()) != len(cls.conf_key)):
+                raise ConfigurationError
+
+            return conf
+        raise FileNotFoundError
         
+    @classmethod
+    def dump(cls,path:str,data:any):
+        with open(path,"w") as f:
+            json.dump(data,f)
+        # PermissionError
+        # TypeError -> data tidak dapat diserialize
+
     @classmethod
     def write(cls,key:str,value:any) -> None:
         data = cls.read()
         data[key] = value
-        with open(cls.conf_path,"w") as f:
-            json.dump(data,f)
+        data = {k:v for k,v in data.values() if k in cls.conf_key}
+        cls.dump(cls.conf_path,data)
 
     @classmethod
-    def manage_permission(cls,path:str):
+    def restrict_access(cls,path:str):
         for root, dirs, files in walk(path):
             chmod(root,0o555)
             chown(root,cls.user,cls.group)
@@ -45,14 +68,12 @@ class Conf:
         sh = ["mount",conf["partition"],conf["destination"]]
         if read_only:
             sh.extend(["-o", "ro"])
-
         subprocess.run(sh,check=True,stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     @classmethod
     def umount(cls,path:str=None):
         if cls.partition_mountpoint(path) is not None or cls.partition_mountpoint(conf["destination"]) is not None:
             ...
-
         if path:
             subprocess.run(["umount","-l",path],check=True)
         else:
@@ -65,12 +86,12 @@ class Conf:
     
     @classmethod
     def folder_size(cls,path:str) -> float:
-        total = 0
+        size = 0
         for dirpath, dirnames, filenames in walk(path):
             for filename in filenames:
-                total += _path.getsize(_path.join(dirpath, filename))
-        return total
-    
+                size += _path.getsize(_path.join(dirpath, filename))
+        return size
+
     @classmethod
     def partition_mountpoint(cls,directory:str=None,device:str=None) -> str:
         for partition in psutil.disk_partitions(True):    
@@ -80,9 +101,6 @@ class Conf:
             
             elif device and partition.device == device:
                 return partition.mountpoint
-            
-            # elif (directory and device):
-            #     ...
 
     @classmethod
     def sync(cls,src:str,remove:bool=True,verbose:bool=False):
@@ -92,12 +110,15 @@ class Conf:
             sh.append("-avh --progress")
         else:
             sh.append("-a")
-        
+
         if remove:
             sh.append("--remove-source-files")
 
         sh.extend([src,conf["destination"]])
         subprocess.run(sh,check=True)
-    
+
+        if remove:
+            rmdir(src)
+
 debug = False
 conf = Conf.read()
