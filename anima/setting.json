@@ -1,1 +1,1 @@
-{"partition": "/dev/sdc5", "destination": "/mnt/","language":"id"}
+{"partition": "/dev/sdc5", "destination": "/var/test/Anime/", "user": "nobody", "group": "nogroup"}

@@ -1,9 +1,10 @@
-from argparse import ArgumentParser, Namespace
-from os import path as _path, getuid
+#!/var/python3_env/bin/python3
 
-from utils.error import NotEnoughSpace
-from utils.conf  import Conf
-from utils.func  import rename, rename_preview, check  # noqa: F401
+from argparse import ArgumentParser, Namespace
+from os import path as _path
+
+from utils.conf import Conf
+from utils.func import rename
 
 def main():
     parser = ArgumentParser()
@@ -14,18 +15,22 @@ def main():
         help="Verbose mode"
     )
     parser.add_argument(
-        "--mount",
+        "-y","--yes",
         action="store_true"
     )
-    parser.add_argument(
-        "--umount",
-        action="store_true"
-    )
-    parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Continuing recent progresss"
-    )
+    # parser.add_argument(
+    #     "--mount",
+    #     action="store_true"
+    # )
+    # parser.add_argument(
+    #     "--umount",
+    #     action="store_true"
+    # )
+    # parser.add_argument(
+    #     "--resume",
+    #     action="store_true",
+    #     help="Continuing recent progresss"
+    # )
 
     subparsers = parser.add_subparsers(
         title="Existing commands",
@@ -34,7 +39,7 @@ def main():
 
     padd = subparsers.add_parser("add")
     padd.add_argument(
-        "src",
+        "source",
         metavar="source",
         nargs="+",
         help="Location of the folder to be added"
@@ -53,6 +58,16 @@ def main():
         choices=["TV","BD"],
     )
     padd.add_argument(
+        "-d","--delete",
+        action="store_true",
+        help="Delete source files"
+    )
+    padd.add_argument(
+        "-i","--ignore",
+        metavar="",
+        nargs="+"
+    )
+    padd.add_argument(
         # Clamav
         "-s","--scan",
         action="store_true"
@@ -62,25 +77,30 @@ def main():
         dest="rename",
         action="store_false"
     )
+    padd.add_argument(
+        "-nra","--no-restrict-access",
+        dest="restrict_access",
+        action="store_false"
+    )
 
-    pedit = subparsers.add_parser("edit")
-    pedit.add_argument(
-        "-f","--folder",
-        metavar="",
-    )
-    pedit.add_argument(
-        "-t","--title",
-        metavar="",
-    )
-    pedit.add_argument(
-        "-r","--resolution",
-        metavar="",
-    )
-    pedit.add_argument(
-        "-p","--platform",
-        metavar="",
-        choices=["TV","BD"],
-    )
+    # pedit = subparsers.add_parser("edit")
+    # pedit.add_argument(
+    #     "-f","--folder",
+    #     metavar="",
+    # )
+    # pedit.add_argument(
+    #     "-t","--title",
+    #     metavar="",
+    # )
+    # pedit.add_argument(
+    #     "-r","--resolution",
+    #     metavar="",
+    # )
+    # pedit.add_argument(
+    #     "-p","--platform",
+    #     metavar="",
+    #     choices=["TV","BD"],
+    # )
 
     prename = subparsers.add_parser("rename")
     prename.add_argument(
@@ -93,10 +113,6 @@ def main():
         "--ignore",
         metavar="",
         nargs="+"
-    )
-    prename.add_argument(
-        "-y","--yes",
-        action="store_false"
     )
     prename.add_argument(
         "-nra","--not-restrict-access",
@@ -134,76 +150,96 @@ def main():
         dest="part"
     )
     pconfig.add_argument(
-        "-pl","--partition-label",
-        metavar="",
-        dest="part_label"
-    )
-    pconfig.add_argument(
         "-d", "--destination",
         metavar="",
         dest="dest"
     )
+    pconfig.add_argument(
+        "-u","--user",
+        metavar="",
+        nargs="?",
+    )
+    pconfig.add_argument(
+        "-g","--group",
+        metavar="",
+        nargs="?",
+    )
 
     args:Namespace = parser.parse_args()
-    print("\n\n",args,sep="",end="\n\n")
+    print(args,sep="",end="\n\n")
 
-    conf = Conf.read()
-
-    if args.umount:
-        Conf.umount()
-    elif args.mount:
-        Conf.mount()
+    conf = Conf(verbose=args.verbose)
 
     match args.command:
-        case "add":
-            
-            src     = args.src
-            device  = conf["partition"]
+        case "add":            
+            source = args.source
+            device = conf["partition"]
+            dest   = conf["destination"]
 
-            if not Conf.disk_free() > Conf.folder_size(src) + 1024:
-                raise NotEnoughSpace
-            
-            if len(src) == 1:
+            if dev := conf.partition_mountpoint(device=device):
+                conf.umount(dev)
+            conf.mount()
+
+            disk_free   = conf.disk_free
+            folder_size = sum([conf.folder_size(i) for i in source])
+
+            if disk_free < folder_size + 1024:
+                raise OSError(
+                    "Not enough space"
+                )
+
+            if len(source) == 1:
                 folder_name = [i for i in [
                     args.title,
                     args.resolution,
                     args.platform
                 ] if i ]
+            else:
+                folder_name = False  # noqa: F841
 
-            for src in args.src:
-                if args.rename and len(src) < 1:
-                    src = rename(src," ".join(folder_name))
-                Conf.restrict_access(src)
-                if Conf.partition_mountpoint(device=device):
-                    Conf.umount(device)
-                Conf.mount()
-                Conf.sync(src,False)
-                Conf.umount(Conf.partition_mountpoint(device=device))
-                Conf.mount(True)
+            for src in source:
+                if not conf.partition_mountpoint(dest,device):
+                    conf.umount()
+                    conf.mount()
 
-        case "rename":                
-            for path in args.rename:
-                rename(path,ignore=args.ignore,use_rename_file=args.use_rename_file,ver=args.yes)
+                new_path = _path.join(dest,src.rstrip("/").split("/")[-1])
+
+                conf.sync(src,args.delete)
+                if args.rename:
+                    new_path = rename(
+                        path=new_path,
+                        ignore=args.ignore,
+                        ver=not args.yes
+                    )
+                if args.restrict_access:
+                    conf.restrict_access(new_path)
+
+            conf.umount(device=device)
+            conf.mount(True)
+
+    #     case "rename":                
+    #         for path in args.rename:
+    #             rename(path,ignore=args.ignore,use_rename_file=args.use_rename_file,ver=args.yes)
 
         case "config":
             if part := args.part:
                 if not _path.exists(part):
-                    # Partisi tidak ada
-                    exit()
-                Conf.write(
-                    "partition",part
-                )
+                    raise FileNotFoundError(f"{part} not found")
+                conf["partition"] = part
+
             if dest := args.dest:
                 if not _path.exists(dest):
-                    # Tujuan tidak ada
-                    exit()
-                Conf.write(
-                    "destination",dest
-                )
-            
-            if not part and not dest:
-                print(Conf.read())
+                    raise FileNotFoundError(f"{dest} not found")
+                conf["destination"] = dest
 
-if __name__ == "__main__":    
+            if user := args.user:
+                conf.user = user
+            if group := args.group:
+                conf.group = group
+
+            if not part and not dest:
+                print(conf.conf)
+
+if __name__ == "__main__": 
     debug = True
     main()

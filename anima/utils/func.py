@@ -1,47 +1,35 @@
 from os import path as _path, listdir, remove, rename as _rename  # noqa: F401
 
-from .conf import Conf
 from .error import FolderRenamed, RenameFileError
+from .conf import Conf
 
-debug = True
-
-def rename_preview(path:str,ignore:list=None ,dump_to_file:bool=True):
-    extension = ("mp4","mkv",  "avi","mov","wmv","flv","ogg","3gp","3p2")
+def rename_preview(path:str,ignore:list=[]):
+    extension = Conf.extension()
 
     list_dir = sorted([
         # Memisah nama file dengan ekstensi file
         # Otakudesu.net_YPTSBT--01_360p.mp4 -> ['Otakudesu.net_YPTSBT--01_360p','mp4']
         [i.replace(i.split(".")[-1],"")[:-1], i.split(".")[-1]] \
         for i in listdir(path) \
-        if i.split(".")[-1] in extension and (f"{i[0]}.{i[-1]}" not in ignore)
+        if i.split(".")[-1] in extension
     ])
 
     if len(list_dir) < 1:
-        raise FileNotFoundError
+        raise FileNotFoundError("Too few files in the folder")
 
     ls_name = []
     for i,j in enumerate(list_dir):
-        file_name = "Episode"
-
-        if i < 9:
-            file_name += "0"
-        #             "Episode0" +    1     + "." + mp4"
-        # ls_name.append(file_name + str(i+1) + "." + j[1])
-        ls_name.append(f"{file_name}{i+1}.{j[1]}")
+        file_name = f"Episode{i:02d}"
+        ls_name.append(f"{file_name}.{j[1]}")
         
     ls_name = [i for i in zip([i[0] + "." + i[1] for i in list_dir],ls_name)]
 
     if ignore: ls_name = [i for i in ls_name if i[0] not in ignore]         # noqa: E701
 
-    if dump_to_file:
-        Conf.dump(_path.join(path,"rename.json"),ls_name)
-
     return ls_name
 
-
-# @coba
 def rename(
-        path:str, folder_name:str=None, ignore:list=None,\
+        path:str, folder_name:str=None, ignore:list=[],\
         use_rename_file:bool=False, ver:bool=True  
     ):
     """
@@ -65,7 +53,7 @@ def rename(
         if ignore: ls_name = [i for i in ls_name if i[0] not in ignore]     # noqa: E701
 
     else:
-        ls_name = rename_preview(path,ignore,dump_to_file=True)
+        ls_name = rename_preview(path,ignore)
         print(f"Location: {path}")
         # Otakudesu.net_YPTSBT--01_360p.mp4 -> Episode01.mp4
         for before, after in ls_name:
@@ -75,33 +63,19 @@ def rename(
             inp = input("Rename? [y/n]\n>>> ")
             if inp not in ["Y","y"] or inp is None or inp.split() == "":
                 print("Not rename")
-                exit()
+                return path
 
     # Rename File
     for before, after in ls_name:
-        if before not in ignore:
-            _rename(_path.join(path,before),_path.join(path,after))
+        if ignore and before in ignore:
+            continue
+        _rename(_path.join(path,before),_path.join(path,after))
 
     if folder_name:
         new_path = _path.join("/".join(path.split("/")[:-1]), folder_name)
-        
+
         # Rename folder name
         _rename(path,new_path)
 
         return new_path
     return path
-
-def check(path:str):
-    # Menagani masalah jika ketika melakukan program terhenti atau masalah lain yang menyebabkan program berhenti
-    data = ls_name = None
-
-    if _path.exists(data_path:=_path.join(path,"data.json")):
-        data:dict = Conf.load(data_path)
-    
-    if _path.exists(ls_name_path:=_path.join(path,"rename.json")):
-        ls_name:list = Conf.load(ls_name_path)
-    
-        # ls_name = [i for i in ls_name if i[0] in listdir(path)]    
-    
-    if isinstance(data,dict) and data["renamed"]:
-        remove(ls_name_path)
