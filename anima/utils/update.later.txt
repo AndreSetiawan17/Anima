@@ -1,1 +1,0 @@
-Meminimalkan penggunaan hak akses root

@@ -1,1 +1,6 @@
-{"partition": "/dev/sdc5", "destination": "/var/test/Anime/", "user": "nobody", "group": "nogroup"}
+{
+    "partition": "/dev/sdb3",
+    "location": "/mnt",
+    "user": "nobody",
+    "group": "nogroup"
+}

@@ -1,3 +1,5 @@
 .venv/
+anima/temp/
+anima/log/
 *note*
 *test*

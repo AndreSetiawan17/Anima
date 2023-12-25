@@ -1,1 +1,2 @@
 psutil==5.9.6
+# hachoir==3.3.0
