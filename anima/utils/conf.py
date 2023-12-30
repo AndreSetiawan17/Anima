@@ -6,7 +6,7 @@ import pwd
 import grp
 import os
 
-import hashlib
+# import hashlib
 
 class ConfigurationError(Exception): ...
 
@@ -137,6 +137,7 @@ class Conf:
                 size += os.path.getsize(os.path.join(dirpath, filename))
         return size
 
+
     def edit(self, data:any):
         path = os.path.join(self.__path,"temp",f"{time()}.json")
         self.dump(path,data)
@@ -220,8 +221,12 @@ class Conf:
             i for i in sorted(os.listdir(path)) \
             if i.split(".")[-1] in self.extension and i not in ignore
         ]
-        extention = [i.split(".")[-1] for i in listdir]
-        after     = [f"Episode{i+1:02d}.{j}" for i,j in enumerate(extention)]
+        after     = [
+            f"Episode{i+1:02d}.{extension}"
+            for i,extension in enumerate(
+                [filename.split(".")[-1] for filename in listdir]
+            ) if True is True
+        ]
         filename  = {k:v for k,v in zip(listdir,after)}
 
         while not yes:

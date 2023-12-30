@@ -129,7 +129,6 @@ def main():
 
     conf = Conf(verbose=args.verbose)
 
-
     match args.command:
         case "add":
             if conf.partition_mountpoint(partition=conf.partition) is False:
